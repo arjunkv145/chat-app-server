@@ -3,79 +3,102 @@ const mongoose = require('mongoose')
 const cors = require('cors')
 const bcrypt = require('bcrypt')
 
+require('dotenv').config()
+const issueJWT = require('./issueJWT')
+const authMiddleware = require('./authMiddleware')
+
 const app = express()
-const port = 3010
+const port = process.env.PORT
 
-const userSchema = require('./models/user')
-var User = mongoose.model('User', userSchema)
+const User = require('./models/user')
 
-mongoose.connect('mongodb+srv://arjunkv:arjunkv_login@cluster0.en5phnp.mongodb.net/chat-app?retryWrites=true&w=majority')
+mongoose.connect(process.env.MONGO_DB_CONNECTION_STRING)
 const db = mongoose.connection;
 db.on("error", () => console.log("connection error"));
-db.once("open", () => app.listen(port, () => console.log(`Listening at port ${port}`)));
+db.once("open", () => console.log("Database has connected"));
 
 app.use(express.json())
-app.use(cors({
-    origin: 'http://localhost:3001',
-}))
+app.use(cors({ origin: process.env.WHITELISTED_DOMAIN }))
 
-app.get('/', (req, res) => {
-    res.json({ data: "home" })
+app.get('/', authMiddleware, (req, res) => {
+    res.json({ user: req.user })
 })
 
-app.get('/check_username/:username', (req, res) => {
-    const { username } = req.params
-    User.find({ userName: username }, (err, docs) => {
-        if (err) res.json({ status: "Couldn't connect database" })
-        else {
-            if (docs.length === 0) res.json({ status: "Username is available" })
-            else res.json({ status: "Username is not available" })
-        }
-    })
-})
-
-app.get('/check_email/:email', (req, res) => {
-    const { email } = req.params
-    User.find({ email }, (err, docs) => {
-        if (err) res.json({ status: "Couldn't connect database" })
-        else {
-            if (docs.length === 0) res.json({ status: "Email is available" })
-            else res.json({ status: "Email is not available" })
-        }
-    })
-})
-
-app.post('/register', (req, res) => {
+app.post('/register', (req, res, next) => {
     bcrypt.hash(req.body.password, 10).then(hash => {
         const user = new User({
             ...req.body,
             password: hash
         })
-        user.save(e => {
-            if (e) {
-                res.send({ message: "Couldn't signup new user" })
-            } else {
-                res.send({ message: "New user signed up" })
-            }
-        })
+        user.save()
+            .then(user => {
+                const id = user._id
+                const jwt = issueJWT(user)
+                res.send({
+                    success: true,
+                    user: user,
+                    token: jwt.token,
+                    expiresIn: jwt.expires
+                })
+            })
+            .catch(err => next())
     })
 })
 
-app.post('/login', (req, res) => {
+app.post('/login', (req, res, next) => {
     const { email, password } = req.body
     User.find({ email }, (err, docs) => {
-        if (err) res.json({ status: "Couldn't connect database" })
+        if (err) next()
         else {
-            if (docs.length === 0) res.json({ status: "User doesn't exist" })
+            if (docs.length === 0) res.json({ success: false, message: "User doesn't exist" })
             else {
                 bcrypt.compare(password, docs[0].password, function (err, result) {
                     if (result === true) {
-                        res.json({ status: "Logging in" })
+                        const user = docs[0]
+                        const id = user._id
+                        const jwt = issueJWT(user)
+                        res.send({
+                            success: true,
+                            message: "Logging in",
+                            user: user,
+                            token: jwt.token,
+                            expiresIn: jwt.expires
+                        })
                     } else {
-                        res.json({ status: "Wrong password" })
+                        res.json({ success: false, message: "Wrong password" })
                     }
                 })
             }
         }
     })
 })
+
+app.get('/check_username/:username', (req, res, next) => {
+    const { username } = req.params
+    User.find({ userName }, (err, docs) => {
+        if (err) next()
+        else {
+            if (docs.length === 0) res.json({ success: true, message: "Username is available" })
+            else res.json({ success: false, message: "Username is not available" })
+        }
+    })
+})
+
+app.get('/check_email/:email', (req, res, next) => {
+    const { email } = req.params
+    User.find({ email }, (err, docs) => {
+        if (err) next()
+        else {
+            if (docs.length === 0) res.json({ success: true, message: "Email is available" })
+            else res.json({ success: false, message: "Email is not available" })
+        }
+    })
+})
+
+app.use(errorHandler)
+
+function errorHandler(err, req, res, next) {
+    res.json({ error: "An error occured, try again" })
+}
+
+app.listen(port, () => console.log(`Listening at port ${port}`))
