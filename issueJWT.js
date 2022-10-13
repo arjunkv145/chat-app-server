@@ -1,22 +1,13 @@
-const jsonwebtoken = require('jsonwebtoken')
+const jwt = require('jsonwebtoken')
 
 module.exports = user => {
     const _id = user._id
-    const expiresIn = '14d'
 
-    const payload = {
-        sub: _id,
-        iat: Date.now()
-    }
+    const payload = { sub: _id }
+    const JWT_secretKey = process.env.JWT_SECRET
+    const expiresIn = '1h'
 
-    const signedToken = jsonwebtoken.sign(
-        payload,
-        process.env.JWT_SECRET,
-        { expiresIn: expiresIn }
-    )
+    const signedToken = jwt.sign(payload, JWT_secretKey, { expiresIn })
 
-    return {
-        token: `Bearer ${signedToken}`,
-        expires: expiresIn
-    }
+    return { token: `Bearer ${signedToken}`, expiresIn }
 }

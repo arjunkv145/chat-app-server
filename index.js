@@ -20,11 +20,11 @@ db.once("open", () => console.log("Database has connected"));
 app.use(express.json())
 app.use(cors({ origin: process.env.WHITELISTED_DOMAIN }))
 
-app.get('/', authMiddleware, (req, res) => {
-    res.json({ user: req.user })
+app.get('/api/isauthenticated', authMiddleware, (req, res) => {
+    res.json({ success: true, user: req.user })
 })
 
-app.post('/register', (req, res, next) => {
+app.post('/api/register', (req, res, next) => {
     bcrypt.hash(req.body.password, 10).then(hash => {
         const user = new User({
             ...req.body,
@@ -45,7 +45,7 @@ app.post('/register', (req, res, next) => {
     })
 })
 
-app.post('/login', (req, res, next) => {
+app.post('/api/login', (req, res, next) => {
     const { email, password } = req.body
     User.find({ email }, (err, docs) => {
         if (err) next()
@@ -73,7 +73,7 @@ app.post('/login', (req, res, next) => {
     })
 })
 
-app.get('/check_username/:username', (req, res, next) => {
+app.get('/api/check_username/:username', (req, res, next) => {
     const { username } = req.params
     User.find({ userName }, (err, docs) => {
         if (err) next()
@@ -84,7 +84,7 @@ app.get('/check_username/:username', (req, res, next) => {
     })
 })
 
-app.get('/check_email/:email', (req, res, next) => {
+app.get('/api/check_email/:email', (req, res, next) => {
     const { email } = req.params
     User.find({ email }, (err, docs) => {
         if (err) next()
