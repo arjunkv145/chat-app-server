@@ -3,6 +3,7 @@ const mongoose = require('mongoose')
 const cors = require('cors')
 const bcrypt = require('bcrypt')
 const cookieParser = require('cookie-parser')
+const jwt = require('jsonwebtoken')
 
 require('dotenv').config()
 const { getAccessToken, getRefreshToken } = require('./getTokens')
@@ -32,12 +33,56 @@ app.use(cors({
     credentials: true
 }))
 
-app.get('/api/isauthenticated', verifyUser, (req, res) => {
-    res.json({ success: true, user: req.user })
-})
+app.post('/api/refreshtoken', (req, res, next) => {
+    const { signedCookies = {} } = req
+    const { refreshToken } = signedCookies
 
-app.post('/refreshtoken', (req, res) => {
-    res.json({})
+    if (refreshToken) {
+        try {
+            const payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET)
+            const userId = payload._id
+
+            User.findOne({ _id: userId })
+                .then(user => {
+                    if (user) {
+                        const tokenIndex = user.refreshToken.findIndex(i => i.refreshToken === refreshToken)
+                        if (tokenIndex === -1) {
+                            res.statusCode = 401
+                            res.json({ success: false, message: "You are not authorized to access this resource" })
+                        } else {
+                            const newAccessToken = getAccessToken(user._id)
+                            const newRefreshToken = getRefreshToken(user._id)
+                            user.refreshToken[tokenIndex] = { refreshToken: newRefreshToken }
+                            user.save((err, saveUser) => {
+                                if (err) {
+                                    res.statusCode = 500
+                                    res.json({ success: false, message: "You are not authorized to access this resource" })
+                                } else {
+                                    delete saveUser.password
+                                    delete saveUser.refreshToken
+                                    res.cookie("refreshToken", newRefreshToken, COOKIE_OPTIONS)
+                                    res.send({
+                                        success: true,
+                                        user: saveUser,
+                                        accessToken: newAccessToken
+                                    })
+                                }
+                            })
+                        }
+                    } else {
+                        res.statusCode = 401
+                        res.json({ success: false, message: "You are not authorized to access this resource" })
+                    }
+                })
+                .catch(err => next(err))
+        } catch (err) {
+            res.statusCode = 401
+            res.json({ success: false, message: "You are not authorized to access this resource" })
+        }
+    } else {
+        res.statusCode = 401
+        res.json({ success: false, message: "You are not authorized to access this resource" })
+    }
 })
 
 app.post('/api/register', (req, res, next) => {
