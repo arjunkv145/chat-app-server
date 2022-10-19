@@ -13,7 +13,7 @@ const app = express()
 const port = process.env.PORT
 const COOKIE_OPTIONS = {
     httpOnly: true,
-    secure: false,
+    secure: true,
     signed: true,
     maxAge: eval(process.env.REFRESH_TOKEN_EXPIRATION) * 1000,
     sameSite: "none",
@@ -33,82 +33,63 @@ app.use(cors({
     credentials: true
 }))
 
-app.post('/api/refreshtoken', (req, res, next) => {
+app.post('/api/refreshtoken', async (req, res, next) => {
     const { signedCookies = {} } = req
     const { refreshToken } = signedCookies
 
-    if (refreshToken) {
-        try {
-            const payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET)
-            const userId = payload._id
-
-            User.findOne({ _id: userId })
-                .then(user => {
-                    if (user) {
-                        const tokenIndex = user.refreshToken.findIndex(i => i.refreshToken === refreshToken)
-                        if (tokenIndex === -1) {
-                            res.statusCode = 401
-                            res.json({ success: false, message: "You are not authorized to access this resource" })
-                        } else {
-                            const newAccessToken = getAccessToken(user._id)
-                            const newRefreshToken = getRefreshToken(user._id)
-                            user.refreshToken[tokenIndex] = { refreshToken: newRefreshToken }
-                            user.save((err, saveUser) => {
-                                if (err) {
-                                    res.statusCode = 500
-                                    res.json({ success: false, message: "You are not authorized to access this resource" })
-                                } else {
-                                    delete saveUser.password
-                                    delete saveUser.refreshToken
-                                    res.cookie("refreshToken", newRefreshToken, COOKIE_OPTIONS)
-                                    res.send({
-                                        success: true,
-                                        user: saveUser,
-                                        accessToken: newAccessToken
-                                    })
-                                }
-                            })
-                        }
-                    } else {
-                        res.statusCode = 401
-                        res.json({ success: false, message: "You are not authorized to access this resource" })
-                    }
-                })
-                .catch(err => next(err))
-        } catch (err) {
-            res.statusCode = 401
-            res.json({ success: false, message: "You are not authorized to access this resource" })
+    try {
+        if (refreshToken) {
+            throw "You don't have a token"
         }
-    } else {
-        res.statusCode = 401
-        res.json({ success: false, message: "You are not authorized to access this resource" })
+        const payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET)
+        const userId = payload.sub
+        const user = await User.findOne({ _id: userId })
+        if (user === null) {
+            throw "User doesn't exist in database"
+        }
+        const tokenIndex = user.refreshToken.findIndex(i => i.refreshToken === refreshToken)
+        if (tokenIndex === -1) {
+            throw "You are not authorized to access this resource"
+        }
+        const newAccessToken = getAccessToken(user._id)
+        const newRefreshToken = getRefreshToken(user._id)
+        user.refreshToken[tokenIndex] = { refreshToken: newRefreshToken }
+        const saveUser = await user.save()
+        delete saveUser.password
+        delete saveUser.refreshToken
+        res.cookie("refreshToken", newRefreshToken, COOKIE_OPTIONS)
+        res.send({
+            success: true,
+            user: saveUser,
+            accessToken: newAccessToken
+        })
+    } catch (err) {
+        res.status(403).json({ success: false, message: err })
     }
 })
 
-app.post('/api/register', (req, res, next) => {
-    bcrypt.hash(req.body.password, 10)
-        .then(hash => {
-            const user = new User({
-                ...req.body,
-                password: hash
-            })
-            const accessToken = getAccessToken(user._id)
-            const refreshToken = getRefreshToken(user._id)
-            user.refreshToken.push({ refreshToken })
-            user.save()
-                .then(saveUser => {
-                    delete saveUser.password
-                    delete saveUser.refreshToken
-                    res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
-                    res.send({
-                        success: true,
-                        user: saveUser,
-                        accessToken: accessToken
-                    })
-                })
-                .catch(err => next(err))
+app.post('/api/register', async (req, res, next) => {
+    try {
+        const hash = bcrypt.hash(req.body.password, 10)
+        const user = new User({
+            ...req.body,
+            password: hash
         })
-        .catch(err => next(err))
+        const accessToken = getAccessToken(user._id)
+        const refreshToken = getRefreshToken(user._id)
+        user.refreshToken.push({ refreshToken })
+        const saveUser = await user.save()
+        delete saveUser.password
+        delete saveUser.refreshToken
+        res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
+        res.json({
+            success: true,
+            user: saveUser,
+            accessToken: accessToken
+        })
+    } catch (err) {
+        next(err)
+    }
 })
 
 app.post('/api/login', async (req, res, next) => {
@@ -129,7 +110,7 @@ app.post('/api/login', async (req, res, next) => {
         delete saveUser.password
         delete saveUser.refreshToken
         res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
-        res.send({
+        res.json({
             success: true,
             user: saveUser,
             accessToken: accessToken
@@ -139,55 +120,66 @@ app.post('/api/login', async (req, res, next) => {
     }
 })
 
-app.get('/api/logout', (req, res, next) => {
+app.get('/api/logout', async (req, res, next) => {
     const { signedCookies = {} } = req
     const { refreshToken } = signedCookies
 
-    User.findById(req.user._id)
-        .then(user => {
-            const tokenIndex = user.refreshToken.findIndex(i => i.refreshToken === refreshToken)
-            if (tokenIndex !== -1) {
-                user.refreshToken.id(user.refreshToken[tokenIndex]._id).remove()
-            }
-            user.save((err, user) => {
-                if (err) {
-                    res.statusCode = 500
-                    next(err)
-                } else {
-                    res.clearCookie("refreshToken", COOKIE_OPTIONS)
-                    res.send({ success: true, message: "You are now logged out" })
-                }
-            })
-        })
-        .catch(err => next(err))
+    try {
+        const payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET)
+        const userId = payload.sub
+
+        const user = await User.findById(userId)
+        if (user === null) {
+            throw new Error("Can't find user in database")
+        }
+        const tokenIndex = user.refreshToken.findIndex(i => i.refreshToken === refreshToken)
+        if (tokenIndex !== -1) {
+            user.refreshToken.id(user.refreshToken[tokenIndex]._id).remove()
+        } else {
+            throw new Error("Can't find token in database")
+        }
+        const saveUser = await user.save()
+        res.clearCookie("refreshToken", COOKIE_OPTIONS)
+        res.json({ success: true, message: "You are now logged out" })
+    } catch (err) {
+        next(err)
+    }
 })
 
-app.get('/api/check_username/:username', (req, res, next) => {
-    const { username } = req.params
-    User.find({ userName }, (err, docs) => {
-        if (err) next()
-        else {
-            if (docs.length === 0) res.json({ success: true, message: "Username is available" })
-            else res.json({ success: false, message: "Username is not available" })
+app.get('/api/check_username/:userName', async (req, res, next) => {
+    const { userName } = req.params
+    try {
+        const user = User.findOne({ userName })
+        if (user === null) {
+            res.json({ success: true, message: "Username is available" })
         }
-    })
+        else {
+            res.json({ success: false, message: "Username is not available" })
+        }
+    } catch (err) {
+        next(err)
+    }
 })
 
 app.get('/api/check_email/:email', (req, res, next) => {
     const { email } = req.params
-    User.find({ email }, (err, docs) => {
-        if (err) next()
-        else {
-            if (docs.length === 0) res.json({ success: true, message: "Email is available" })
-            else res.json({ success: false, message: "Email is not available" })
+    try {
+        const user = User.findOne({ email })
+        if (user === null) {
+            res.json({ success: true, message: "Email is available" })
         }
-    })
+        else {
+            res.json({ success: false, message: "Email is not available" })
+        }
+    } catch (err) {
+        next(err)
+    }
 })
 
 app.use(errorHandler)
 
 function errorHandler(err, req, res, next) {
-    res.json({ error: "An error occured, try again" })
+    res.status(500).json({ message: "An error occured, try again", error: err })
 }
 
 app.listen(port, () => console.log(`Listening at port ${port}`))
