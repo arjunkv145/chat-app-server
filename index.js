@@ -149,7 +149,7 @@ app.get('/api/logout', async (req, res, next) => {
 app.get('/api/check_username/:userName', async (req, res, next) => {
     const { userName } = req.params
     try {
-        const user = User.findOne({ userName })
+        const user = await User.findOne({ userName })
         if (user === null) {
             res.json({ success: true, message: "Username is available" })
         }
@@ -161,10 +161,10 @@ app.get('/api/check_username/:userName', async (req, res, next) => {
     }
 })
 
-app.get('/api/check_email/:email', (req, res, next) => {
+app.get('/api/check_email/:email', async (req, res, next) => {
     const { email } = req.params
     try {
-        const user = User.findOne({ email })
+        const user = await User.findOne({ email })
         if (user === null) {
             res.json({ success: true, message: "Email is available" })
         }
