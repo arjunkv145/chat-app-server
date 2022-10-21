@@ -9,14 +9,6 @@ const Session = new Schema({
 })
 
 const userSchema = new Schema({
-    firstName: {
-        type: String,
-        default: "",
-    },
-    lastName: {
-        type: String,
-        default: "",
-    },
     userName: {
         type: String,
         default: "",

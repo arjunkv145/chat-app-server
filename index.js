@@ -33,12 +33,17 @@ app.use(cors({
     credentials: true
 }))
 
+app.get('/api/', verifyUser, (req, res) => {
+    res.json({ success: true, message: 'You are logged in' })
+})
+
 app.post('/api/refreshtoken', async (req, res, next) => {
     const { signedCookies = {} } = req
     const { refreshToken } = signedCookies
-
+    console.log(req.signedCookies.refreshToken)
+    console.log(refreshToken)
     try {
-        if (refreshToken) {
+        if (!refreshToken) {
             throw "You don't have a token"
         }
         const payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET)
@@ -55,12 +60,10 @@ app.post('/api/refreshtoken', async (req, res, next) => {
         const newRefreshToken = getRefreshToken(user._id)
         user.refreshToken[tokenIndex] = { refreshToken: newRefreshToken }
         const saveUser = await user.save()
-        delete saveUser.password
-        delete saveUser.refreshToken
         res.cookie("refreshToken", newRefreshToken, COOKIE_OPTIONS)
         res.send({
             success: true,
-            user: saveUser,
+            user: { userName: saveUser.userName, email: saveUser.email },
             accessToken: newAccessToken
         })
     } catch (err) {
@@ -69,8 +72,9 @@ app.post('/api/refreshtoken', async (req, res, next) => {
 })
 
 app.post('/api/register', async (req, res, next) => {
+    console.log(req.body)
     try {
-        const hash = bcrypt.hash(req.body.password, 10)
+        const hash = await bcrypt.hash(req.body.password, 10)
         const user = new User({
             ...req.body,
             password: hash
@@ -79,12 +83,10 @@ app.post('/api/register', async (req, res, next) => {
         const refreshToken = getRefreshToken(user._id)
         user.refreshToken.push({ refreshToken })
         const saveUser = await user.save()
-        delete saveUser.password
-        delete saveUser.refreshToken
         res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
         res.json({
             success: true,
-            user: saveUser,
+            user: { userName: saveUser.userName, email: saveUser.email },
             accessToken: accessToken
         })
     } catch (err) {
@@ -107,12 +109,10 @@ app.post('/api/login', async (req, res, next) => {
         const refreshToken = getRefreshToken(user._id)
         user.refreshToken.push({ refreshToken })
         const saveUser = await user.save()
-        delete saveUser.password
-        delete saveUser.refreshToken
         res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
         res.json({
             success: true,
-            user: saveUser,
+            user: { userName: saveUser.userName, email: saveUser.email },
             accessToken: accessToken
         })
     } catch (err) {
