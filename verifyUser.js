@@ -7,7 +7,8 @@ module.exports = async (req, res, next) => {
             throw "You don't have an access token"
         }
         const tokenParts = req.headers.authorization.split(' ')
-        if (tokenParts[0] = 'Bearer' && tokenParts[1].match(/\S+\.\S+\.\S+/) !== null && tokenParts.length === 2) {
+        console.log(tokenParts)
+        if (tokenParts.length !== 2 || tokenParts[0] !== 'Bearer') {
             throw "Invalid access token"
         }
         const payload = await jsonwebtoken.verify(tokenParts[1], process.env.ACCESS_TOKEN_SECRET)

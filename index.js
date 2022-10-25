@@ -33,15 +33,14 @@ app.use(cors({
     credentials: true
 }))
 
-app.get('/api/', verifyUser, (req, res) => {
-    res.json({ success: true, message: 'You are logged in' })
-})
+app.get('/api/groups', verifyUser, (req, res) => {
+    res.json({ groups: ['art', 'music', 'anime', 'gaming', 'sports', 'writing', 'manga'] })
+} )
 
-app.post('/api/refreshtoken', async (req, res, next) => {
+app.get('/api/', async (req, res, next) => {
     const { signedCookies = {} } = req
     const { refreshToken } = signedCookies
-    console.log(req.signedCookies.refreshToken)
-    console.log(refreshToken)
+
     try {
         if (!refreshToken) {
             throw "You don't have a token"
@@ -57,6 +56,7 @@ app.post('/api/refreshtoken', async (req, res, next) => {
             throw "You are not authorized to access this resource"
         }
         const newAccessToken = getAccessToken(user._id)
+        console.log(newAccessToken)
         const newRefreshToken = getRefreshToken(user._id)
         user.refreshToken[tokenIndex] = { refreshToken: newRefreshToken }
         const saveUser = await user.save()
@@ -72,7 +72,7 @@ app.post('/api/refreshtoken', async (req, res, next) => {
 })
 
 app.post('/api/register', async (req, res, next) => {
-    console.log(req.body)
+    
     try {
         const hash = await bcrypt.hash(req.body.password, 10)
         const user = new User({
