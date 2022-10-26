@@ -35,7 +35,7 @@ app.use(cors({
 
 app.get('/api/groups', verifyUser, (req, res) => {
     res.json({ groups: ['art', 'music', 'anime', 'gaming', 'sports', 'writing', 'manga'] })
-} )
+})
 
 app.get('/api/', async (req, res, next) => {
     const { signedCookies = {} } = req
@@ -56,7 +56,6 @@ app.get('/api/', async (req, res, next) => {
             throw "You are not authorized to access this resource"
         }
         const newAccessToken = getAccessToken(user._id)
-        console.log(newAccessToken)
         const newRefreshToken = getRefreshToken(user._id)
         user.refreshToken[tokenIndex] = { refreshToken: newRefreshToken }
         const saveUser = await user.save()
@@ -72,7 +71,7 @@ app.get('/api/', async (req, res, next) => {
 })
 
 app.post('/api/register', async (req, res, next) => {
-    
+
     try {
         const hash = await bcrypt.hash(req.body.password, 10)
         const user = new User({
@@ -107,6 +106,14 @@ app.post('/api/login', async (req, res, next) => {
         }
         const accessToken = getAccessToken(user._id)
         const refreshToken = getRefreshToken(user._id)
+        user.refreshToken = user.refreshToken.filter(token => {
+            try {
+                const payload = jsonwebtoken.verify(token.refreshToken, process.env.REFRESH_TOKEN_SECRET)
+                return true
+            } catch (err) {
+                return false
+            }
+        })
         user.refreshToken.push({ refreshToken })
         const saveUser = await user.save()
         res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
