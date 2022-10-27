@@ -4,9 +4,15 @@ const cors = require('cors')
 const bcrypt = require('bcrypt')
 const cookieParser = require('cookie-parser')
 const jwt = require('jsonwebtoken')
+const nodemailer = require('nodemailer')
 
 require('dotenv').config()
-const { getAccessToken, getRefreshToken } = require('./getTokens')
+const {
+    getAccessToken,
+    getRefreshToken,
+    getEmailVerificationToken,
+    getPasswordResetToken
+} = require('./getTokens')
 const verifyUser = require('./verifyUser')
 
 const app = express()
@@ -20,6 +26,14 @@ const COOKIE_OPTIONS = {
 }
 
 const User = require('./models/user')
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.HOST_MAIL_USER,
+        pass: process.env.HOST_MAIL_PASS
+    }
+})
 
 mongoose.connect(process.env.MONGO_DB_CONNECTION_STRING)
 const db = mongoose.connection;
@@ -37,7 +51,113 @@ app.get('/api/groups', verifyUser, (req, res) => {
     res.json({ groups: ['art', 'music', 'anime', 'gaming', 'sports', 'writing', 'manga'] })
 })
 
-app.get('/api/', async (req, res, next) => {
+app.get('/api/verifyyouremail/:emailVerificationToken', async (req, res, next) => {
+    const { emailVerificationToken } = req.params
+    try {
+        const payload = jwt.verify(emailVerificationToken, process.env.EMAIL_VERIFICATION_TOKEN_SECRET)
+        const userId = payload.sub
+        const user = await User.findOne({ _id: userId })
+        if (user === null) {
+            return res.json({ success: false, message: "User doesn't exist" })
+        }
+        user.emailVerified = true
+        const saveUser = await user.save()
+        res.redirect('//localhost:3000/chat')
+    } catch (err) {
+        next(err)
+    }
+})
+
+app.get('/api/passwordreset/isexpired/:passwordresettoken', async (req, res, next) => {
+    const { passwordresettoken } = req.params
+    try {
+        const payload = jwt.verify(passwordresettoken, process.env.PASSWORD_RESET_TOKEN_SECRET)
+        const userId = payload.sub
+        const user = await User.findOne({ _id: userId })
+        if (user === null) {
+            return res.json({ isexpired: true, message: "User doesn't exist" })
+        }
+        if (user.passwordResetToken !== passwordresettoken) {
+            return res.json({ isexpired: true, message: "Password reset link is expired" })
+        }
+        res.json({ isexpired: false, message: "Password reset link is valid" })
+    } catch (err) {
+        next(err)
+    }
+})
+
+app.get('/api/passwordreset/:email', async (req, res, next) => {
+    const { email } = req.params
+
+    try {
+        const user = await User.findOne({ email })
+        if (user === null) {
+            return res.json({ success: false, message: "User doesn't exist" })
+        }
+        const passwordResetToken = getPasswordResetToken(user._id)
+        user.passwordResetToken = passwordResetToken
+
+        const html = `
+            <p>
+                You can reset your password using this 
+                <a 
+                    href='http://localhost:3000/passwordreset/${passwordResetToken}' 
+                    target='_blank'
+                >
+                    link
+                </a>
+            </p>
+        `
+        const mailOptions = {
+            from: process.env.HOST_MAIL_USER,
+            to: user.email,
+            subject: 'Password reset',
+            html
+        }
+        transporter.sendMail(mailOptions, (err, data) => {
+            if (err) {
+                return next(err)
+            } else {
+                console.log('Email sent (password reset): ' + data.response)
+            }
+        })
+
+        const saveUser = await user.save()
+        res.json({ success: true, message: "Password reset link has been sent to your mail" })
+    } catch (err) {
+        next(err)
+    }
+})
+
+app.post('/api/passwordreset/', async (req, res, next) => {
+    const { passwordResetToken, password } = req.body
+    console.log(passwordResetToken)
+    try {
+        const payload = jwt.verify(passwordResetToken, process.env.PASSWORD_RESET_TOKEN_SECRET)
+        const userId = payload.sub
+        const user = await User.findOne({ _id: userId })
+        if (user === null) {
+            return res.json({ success: false, message: "User doesn't exist" })
+        }
+        if (user.passwordResetToken !== passwordResetToken) {
+            return res.json({ success: false, message: "Password reset link is expired" })
+        }
+        const result = await bcrypt.compare(password, user.password)
+        console.log(password)
+        console.log(result)
+        if (result === true) {
+            return res.json({ success: false, message: "You can't use the old password" })
+        }
+        user.passwordResetToken = ''
+        user.password = password
+        const saveUser = await user.save()
+        res.json({ success: true, message: "Password has been changed successfully" })
+    } catch (err) {
+        next(err)
+    }
+})
+
+app.get('/api', async (req, res, next) => {
     const { signedCookies = {} } = req
     const { refreshToken } = signedCookies
 
@@ -62,7 +182,11 @@ app.get('/api/', async (req, res, next) => {
         res.cookie("refreshToken", newRefreshToken, COOKIE_OPTIONS)
         res.send({
             success: true,
-            user: { userName: saveUser.userName, email: saveUser.email },
+            user: {
+                userName: saveUser.userName,
+                email: saveUser.email,
+                emailVerified: saveUser.emailVerified
+            },
             accessToken: newAccessToken
         })
     } catch (err) {
@@ -80,12 +204,43 @@ app.post('/api/register', async (req, res, next) => {
         })
         const accessToken = getAccessToken(user._id)
         const refreshToken = getRefreshToken(user._id)
+        const emailVerificationToken = getEmailVerificationToken(user._id)
         user.refreshToken.push({ refreshToken })
+
+        const html = `
+            <p>
+                Verifiy your email by clicking this 
+                <a 
+                    href='http://localhost:3030/api/verifyyouremail/${emailVerificationToken}' 
+                    target='_blank'
+                >
+                    link
+                </a>
+            </p>
+        `
+        const mailOptions = {
+            from: process.env.HOST_MAIL_USER,
+            to: user.email,
+            subject: 'Verify your email',
+            html
+        }
+        transporter.sendMail(mailOptions, (err, data) => {
+            if (err) {
+                return next(err)
+            } else {
+                console.log('Email sent (email verification): ' + data.response)
+            }
+        })
+
         const saveUser = await user.save()
         res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
         res.json({
             success: true,
-            user: { userName: saveUser.userName, email: saveUser.email },
+            user: {
+                userName: saveUser.userName,
+                email: saveUser.email,
+                emailVerified: saveUser.emailVerified
+            },
             accessToken: accessToken
         })
     } catch (err) {
@@ -119,7 +274,11 @@ app.post('/api/login', async (req, res, next) => {
         res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
         res.json({
             success: true,
-            user: { userName: saveUser.userName, email: saveUser.email },
+            user: {
+                userName: saveUser.userName,
+                email: saveUser.email,
+                emailVerified: saveUser.emailVerified
+            },
             accessToken: accessToken
         })
     } catch (err) {

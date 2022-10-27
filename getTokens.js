@@ -22,4 +22,26 @@ const getRefreshToken = userId => {
     return refreshToken
 }
 
-module.exports = { getAccessToken, getRefreshToken }
+const getEmailVerificationToken = userId => {
+
+    const payload = { sub: userId }
+    const email_verification_token_secret = process.env.EMAIL_VERIFICATION_TOKEN_SECRET
+    const expiresIn = eval(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRATION)
+
+    const emailVerificationToken = jwt.sign(payload, email_verification_token_secret, { expiresIn })
+
+    return emailVerificationToken
+}
+
+const getPasswordResetToken = userId => {
+
+    const payload = { sub: userId }
+    const password_reset_token_secret = process.env.PASSWORD_RESET_TOKEN_SECRET
+    const expiresIn = eval(process.env.PASSWORD_RESET_TOKEN_EXPIRATION)
+
+    const passwordResetToken = jwt.sign(payload, password_reset_token_secret, { expiresIn })
+
+    return passwordResetToken
+}
+
+module.exports = { getAccessToken, getRefreshToken, getEmailVerificationToken, getPasswordResetToken }
