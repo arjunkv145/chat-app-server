@@ -8,6 +8,8 @@ router.get('/isusernameavailable/:userName', signupController.isusernameavailabl
 
 router.get('/isemailavailable/:email', signupController.isemailavailable)
 
+router.get('/verifyyouremail/resend/:email', signupController.resend)
+
 router.get('/verifyyouremail/:emailVerificationToken', signupController.verifyyouremail)
 
 module.exports = router
