@@ -100,7 +100,7 @@ const resend = async (req, res, next) => {
     try {
         const user = await User.findOne({ email })
         if (user === null) {
-            return res.json({ success: false, message: "User doesn't exist" })
+            return res.status(410).json({ success: false, message: "User doesn't exist" })
         }
         const emailVerificationToken = getEmailVerificationToken(user._id)
         user.emailVerificationToken = emailVerificationToken
@@ -144,10 +144,10 @@ const verifyyouremail = async (req, res, next) => {
         const userId = payload.sub
         const user = await User.findOne({ _id: userId })
         if (user === null) {
-            return res.json({ success: false, message: "User doesn't exist" })
+            return res.status(410).json({ success: false, message: "User doesn't exist" })
         }
         if (user.emailVerificationToken !== emailVerificationToken) {
-            return res.json({ success: false, message: "This link is expired" })
+            return res.status(410).json({ success: false, message: "This link is expired" })
         }
         user.emailVerified = true
         user.emailVerificationToken = ''

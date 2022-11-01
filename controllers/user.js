@@ -39,7 +39,7 @@ const refreshToken = async (req, res, next) => {
             accessToken: newAccessToken
         })
     } catch (err) {
-        res.status(403).json({ success: false, message: err })
+        res.status(401).json({ success: false, message: err })
     }
 }
 
