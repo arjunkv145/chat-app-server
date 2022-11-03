@@ -102,6 +102,9 @@ const resend = async (req, res, next) => {
         if (user === null) {
             return res.status(410).json({ success: false, message: "User doesn't exist" })
         }
+        if (user.emailVerified === true) {
+            return res.status(422).json({ success: false, message: "Your email has already been verified" })
+        }
         const emailVerificationToken = getEmailVerificationToken(user._id)
         user.emailVerificationToken = emailVerificationToken
 
