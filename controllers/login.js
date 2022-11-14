@@ -19,14 +19,6 @@ const login = async (req, res, next) => {
         }
         const accessToken = getAccessToken(user._id)
         const refreshToken = getRefreshToken(user._id)
-        user.refreshToken = user.refreshToken.filter(token => {
-            try {
-                const payload = jsonwebtoken.verify(token.refreshToken, process.env.REFRESH_TOKEN_SECRET)
-                return true
-            } catch (err) {
-                return false
-            }
-        })
         user.refreshToken.push({ refreshToken })
         const saveUser = await user.save()
         res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS)

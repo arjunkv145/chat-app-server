@@ -8,7 +8,7 @@ require('dotenv').config()
 
 const CORS_OPTIONS = require('./options').CORS_OPTIONS
 const app = express()
-const server = http.createServer(app).listen(3031)
+const server = http.createServer(app)
 const io = new Server(server, {
     cors: CORS_OPTIONS
 })
@@ -49,14 +49,27 @@ app.get('/api/user/:userId', (req, res) => {
         { id: 1, userName: "chatroom" },
     ]
     const user = usersList.find(u => u.id == userId)
+    if (user === undefined) {
+        return res.status(404).json({ success: false, error: 'no user in db' })
+    }
 
     res.json({ user })
 })
 
 io.on('connection', socket => {
     console.log(`new user joined - ${socket.id}`)
+    socket.join(`${socket.handshake.query.userName} ${socket.handshake.query.sessionId}`)
     socket.on('send_message', data => {
         socket.broadcast.emit('receive_message', data)
+    })
+    socket.on('logout', data => {
+        socket.to(data.room).emit('logout')
+    })
+    socket.on('logoutAll', data => {
+        socket.to(data.room).emit('logout')
+    })
+    socket.on('disconnect', data => {
+        console.log(`user disconnected - ${socket.id}`)
     })
 })
 
@@ -66,4 +79,4 @@ function errorHandler(err, req, res, next) {
     res.status(500).json({ message: "An error occured, try again", error: err })
 }
 
-app.listen(port, () => console.log(`Listening at port ${port}`))
+server.listen(port, () => console.log(`Listening at port ${port}`))

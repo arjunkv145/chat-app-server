@@ -1,4 +1,6 @@
 const User = require('../models/user')
+const Chat = require('../models/chat')
+const Friend = require('../models/friend')
 const jwt = require('jsonwebtoken')
 const bcrypt = require('bcrypt')
 const {
@@ -16,6 +18,15 @@ const newuser = async (req, res, next) => {
         const user = new User({
             ...req.body,
             password: hash
+        })
+        const friend = new Friend({
+            userName: req.body.userName,
+            friends: [],
+            pendingRequest: [],
+        })
+        const chat = new Chat({
+            userName: req.body.userName,
+            chats: [],
         })
         const accessToken = getAccessToken(user._id)
         const refreshToken = getRefreshToken(user._id)
@@ -49,6 +60,8 @@ const newuser = async (req, res, next) => {
         })
 
         const saveUser = await user.save()
+        await friend.save()
+        await chat.save()
         res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
         res.json({
             success: true,
@@ -133,7 +146,7 @@ const resend = async (req, res, next) => {
             }
         })
 
-        const saveUser = await user.save()
+        await user.save()
         res.json({ success: true, message: "New email verification link has been sent to your mail" })
     } catch (err) {
         next(err)
@@ -154,7 +167,7 @@ const verifyyouremail = async (req, res, next) => {
         }
         user.emailVerified = true
         user.emailVerificationToken = ''
-        const saveUser = await user.save()
+        await user.save()
         res.redirect('//localhost:3000/chat')
     } catch (err) {
         next(err)

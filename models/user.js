@@ -1,14 +1,14 @@
 const mongoose = require('mongoose')
 const { Schema } = mongoose
 
-const Session = new Schema({
+const SessionSchema = new Schema({
     refreshToken: {
         type: String,
         default: "",
     },
 })
 
-const userSchema = new Schema({
+const UserSchema = new Schema({
     userName: {
         type: String,
         default: "",
@@ -34,10 +34,10 @@ const userSchema = new Schema({
         default: "",
     },
     refreshToken: {
-        type: [Session],
+        type: [SessionSchema],
     },
 })
 
-const User = mongoose.model('User', userSchema)
+const User = mongoose.model('User', UserSchema)
 
 module.exports = User
