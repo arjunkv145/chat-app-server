@@ -19,7 +19,8 @@ const login = async (req, res, next) => {
         }
         const accessToken = getAccessToken(user._id)
         const refreshToken = getRefreshToken(user._id)
-        user.refreshToken.push({ refreshToken })
+        const sessionId = user.refreshToken.length + 1
+        user.refreshToken.push({ sessionId, refreshToken })
         const saveUser = await user.save()
         res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
         res.json({
@@ -29,7 +30,8 @@ const login = async (req, res, next) => {
                 email: saveUser.email,
                 emailVerified: saveUser.emailVerified
             },
-            accessToken: accessToken
+            accessToken,
+            sessionId
         })
     } catch (err) {
         next(err)

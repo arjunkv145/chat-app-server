@@ -2,6 +2,10 @@ const mongoose = require('mongoose')
 const { Schema } = mongoose
 
 const SessionSchema = new Schema({
+    sessionId: {
+        type: Number,
+        default: "",
+    },
     refreshToken: {
         type: String,
         default: "",

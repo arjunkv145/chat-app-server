@@ -11,7 +11,7 @@ const {
 const transporter = require('../nodemailer')
 const COOKIE_OPTIONS = require('../options').COOKIE_OPTIONS
 
-const newuser = async (req, res, next) => {
+const newUser = async (req, res, next) => {
 
     try {
         const hash = await bcrypt.hash(req.body.password, 10)
@@ -31,14 +31,15 @@ const newuser = async (req, res, next) => {
         const accessToken = getAccessToken(user._id)
         const refreshToken = getRefreshToken(user._id)
         const emailVerificationToken = getEmailVerificationToken(user._id)
-        user.refreshToken.push({ refreshToken })
+        const sessionId = 1
+        user.refreshToken.push({ sessionId, refreshToken })
         user.emailVerificationToken = emailVerificationToken
 
         const html = `
             <p>
                 Verifiy your email by clicking this 
                 <a 
-                    href='http://localhost:3030/api/signup/verifyyouremail/${emailVerificationToken}' 
+                    href='http://localhost:3000/email-verification-link/${emailVerificationToken}' 
                     target='_blank'
                 >
                     link
@@ -70,14 +71,15 @@ const newuser = async (req, res, next) => {
                 email: saveUser.email,
                 emailVerified: saveUser.emailVerified
             },
-            accessToken: accessToken
+            accessToken,
+            sessionId
         })
     } catch (err) {
         next(err)
     }
 }
 
-const isusernameavailable = async (req, res, next) => {
+const isUsernameAvailable = async (req, res, next) => {
     const { userName } = req.params
     try {
         const user = await User.findOne({ userName })
@@ -92,7 +94,7 @@ const isusernameavailable = async (req, res, next) => {
     }
 }
 
-const isemailavailable = async (req, res, next) => {
+const isEmailAvailable = async (req, res, next) => {
     const { email } = req.params
     try {
         const user = await User.findOne({ email })
@@ -125,7 +127,7 @@ const resend = async (req, res, next) => {
             <p>
                 Verifiy your email by clicking this 
                 <a 
-                    href='http://localhost:3030/api/signup/verifyyouremail/${emailVerificationToken}' 
+                    href='http://localhost:3000/email-verification-link/${emailVerificationToken}' 
                     target='_blank'
                 >
                     link
@@ -153,7 +155,7 @@ const resend = async (req, res, next) => {
     }
 }
 
-const verifyyouremail = async (req, res, next) => {
+const verifyYourEmail = async (req, res, next) => {
     const { emailVerificationToken } = req.params
     try {
         const payload = jwt.verify(emailVerificationToken, process.env.EMAIL_VERIFICATION_TOKEN_SECRET)
@@ -167,17 +169,17 @@ const verifyyouremail = async (req, res, next) => {
         }
         user.emailVerified = true
         user.emailVerificationToken = ''
-        await user.save()
-        res.redirect('//localhost:3000/chat')
+        const saveUser = await user.save()
+        return res.json({ success: true, message: "Your email is verified", userName: saveUser.userName })
     } catch (err) {
         next(err)
     }
 }
 
 module.exports = {
-    newuser,
-    isusernameavailable,
-    isemailavailable,
+    newUser,
+    isUsernameAvailable,
+    isEmailAvailable,
     resend,
-    verifyyouremail
+    verifyYourEmail
 }

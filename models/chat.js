@@ -10,6 +10,10 @@ const ChatUserSchema = new Schema({
         type: String,
         default: "",
     },
+    friends: {
+        type: Boolean,
+        default: false,
+    },
     pending: {
         type: Boolean,
         default: false,

@@ -23,6 +23,7 @@ const logoutRoutes = require('./routes/logout')
 const passwordResetRoutes = require('./routes/passwordReset')
 const groupRoutes = require('./routes/group')
 const userRoutes = require('./routes/user')
+const friendRoutes = require('./routes/friend')
 
 app.use(cookieParser(process.env.COOKIE_SECRET))
 app.use(express.json())
@@ -31,9 +32,10 @@ app.use(cors(CORS_OPTIONS))
 app.use('/api/signup', signupRoutes)
 app.use('/api/login', loginRoutes)
 app.use('/api/logout', logoutRoutes)
-app.use('/api/passwordreset', passwordResetRoutes)
+app.use('/api/password-reset', passwordResetRoutes)
 app.use('/api/group', groupRoutes)
 app.use('/api/user', userRoutes)
+app.use('/api/friend', friendRoutes)
 
 app.get('/api/userslist', (req, res) => {
     const usersList = [
@@ -58,15 +60,18 @@ app.get('/api/user/:userId', (req, res) => {
 
 io.on('connection', socket => {
     console.log(`new user joined - ${socket.id}`)
-    socket.join(`${socket.handshake.query.userName} ${socket.handshake.query.sessionId}`)
+    socket.join(socket.handshake.query.userName)
     socket.on('send_message', data => {
         socket.broadcast.emit('receive_message', data)
     })
+    socket.on('email is verified', data => {
+        socket.to(data.room).emit('email is verified')
+    })
     socket.on('logout', data => {
-        socket.to(data.room).emit('logout')
+        socket.to(data.room).emit('logout', data.sessionId)
     })
     socket.on('logoutAll', data => {
-        socket.to(data.room).emit('logout')
+        socket.to(data.room).emit('logoutAll')
     })
     socket.on('disconnect', data => {
         console.log(`user disconnected - ${socket.id}`)

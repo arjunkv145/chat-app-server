@@ -6,7 +6,7 @@ const {
 } = require('../getTokens')
 const transporter = require('../nodemailer')
 
-const isexpired = async (req, res, next) => {
+const isExpired = async (req, res, next) => {
     const { passwordresettoken } = req.params
     try {
         const payload = jwt.verify(passwordresettoken, process.env.PASSWORD_RESET_TOKEN_SECRET)
@@ -24,7 +24,7 @@ const isexpired = async (req, res, next) => {
     }
 }
 
-const sendmail = async (req, res, next) => {
+const sendMail = async (req, res, next) => {
     const { email } = req.params
 
     try {
@@ -39,7 +39,7 @@ const sendmail = async (req, res, next) => {
             <p>
                 You can reset your password using this 
                 <a 
-                    href='http://localhost:3000/passwordreset/${passwordResetToken}' 
+                    href='http://localhost:3000/password-reset/${passwordResetToken}' 
                     target='_blank'
                 >
                     link
@@ -94,7 +94,7 @@ const passwordReset = async (req, res, next) => {
 }
 
 module.exports = {
-    isexpired,
-    sendmail,
+    isExpired,
+    sendMail,
     passwordReset
 }
