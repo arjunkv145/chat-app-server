@@ -12,17 +12,17 @@ const refreshToken = async (req, res, next) => {
 
     try {
         if (!refreshToken) {
-            throw "You don't have a token"
+            throw new Error("You don't have a token")
         }
         const payload = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET)
         const userId = payload.sub
         const user = await User.findOne({ _id: userId })
         if (user === null) {
-            throw "User doesn't exist in database"
+            throw new Error("User doesn't exist in database")
         }
         const tokenIndex = user.refreshToken.findIndex(i => i.refreshToken === refreshToken)
         if (tokenIndex === -1) {
-            throw "You are not authorized to access this resource"
+            throw new Error("You are not authorized to access this resource")
         }
         const newAccessToken = getAccessToken(user._id)
         const newRefreshToken = getRefreshToken(user._id)
@@ -32,7 +32,7 @@ const refreshToken = async (req, res, next) => {
             refreshToken: newRefreshToken
         }
         const saveUser = await user.save()
-        res.cookie("refreshToken", newRefreshToken, COOKIE_OPTIONS)
+        res.cookie('refreshToken', newRefreshToken, COOKIE_OPTIONS)
         res.send({
             success: true,
             user: {

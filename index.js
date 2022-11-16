@@ -23,6 +23,7 @@ const logoutRoutes = require('./routes/logout')
 const passwordResetRoutes = require('./routes/passwordReset')
 const groupRoutes = require('./routes/group')
 const userRoutes = require('./routes/user')
+const chatRoutes = require('./routes/chat')
 const friendRoutes = require('./routes/friend')
 
 app.use(cookieParser(process.env.COOKIE_SECRET))
@@ -35,28 +36,8 @@ app.use('/api/logout', logoutRoutes)
 app.use('/api/password-reset', passwordResetRoutes)
 app.use('/api/group', groupRoutes)
 app.use('/api/user', userRoutes)
+app.use('/api/chat', chatRoutes)
 app.use('/api/friend', friendRoutes)
-
-app.get('/api/userslist', (req, res) => {
-    const usersList = [
-        { id: 1, userName: "chatroom" },
-    ]
-
-    res.json({ usersList })
-})
-
-app.get('/api/user/:userId', (req, res) => {
-    const { userId } = req.params
-    const usersList = [
-        { id: 1, userName: "chatroom" },
-    ]
-    const user = usersList.find(u => u.id == userId)
-    if (user === undefined) {
-        return res.status(404).json({ success: false, error: 'no user in db' })
-    }
-
-    res.json({ user })
-})
 
 io.on('connection', socket => {
     console.log(`new user joined - ${socket.id}`)
@@ -81,7 +62,7 @@ io.on('connection', socket => {
 app.use(errorHandler)
 
 function errorHandler(err, req, res, next) {
-    res.status(500).json({ message: "An error occured, try again", error: err })
+    res.status(500).json({ message: 'An error occured, try again', error: err })
 }
 
 server.listen(port, () => console.log(`Listening at port ${port}`))

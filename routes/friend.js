@@ -1,11 +1,16 @@
 const express = require('express')
 const router = express.Router()
 const friendController = require('../controllers/friend')
+const verifyUser = require('../verifyUser')
 
-router.post('/request', friendController.request)
+router.post('/request', verifyUser, friendController.request)
 
-router.get('/', friendController.friends)
+router.get('/', verifyUser, friendController.friends)
 
-router.get('/pending', friendController.pending)
+router.get('/pending', verifyUser, friendController.pending)
+
+router.post('/accept', verifyUser, friendController.accept)
+
+router.post('/reject', verifyUser, friendController.reject)
 
 module.exports = router

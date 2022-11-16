@@ -16,7 +16,7 @@ const ChatUserSchema = new Schema({
     },
     pending: {
         type: Boolean,
-        default: false,
+        default: true,
     },
     requestSent: {
         type: Boolean,

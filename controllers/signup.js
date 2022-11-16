@@ -63,7 +63,7 @@ const newUser = async (req, res, next) => {
         const saveUser = await user.save()
         await friend.save()
         await chat.save()
-        res.cookie("refreshToken", refreshToken, COOKIE_OPTIONS)
+        res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS)
         res.json({
             success: true,
             user: {
