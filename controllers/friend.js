@@ -8,14 +8,14 @@ const request = async (req, res, next) => {
 
     try {
         if (!userName) {
-            return res.status(400).json({ success: false, message: "Username not provided" })
+            return res.status(400).json({ message: "Username not provided" })
         }
         if (myUserName === userName) {
-            return res.json({ success: false, message: "Can't send request" })
+            return res.status(422).json({ message: "Can't send request" })
         }
         const user = await User.findOne({ userName })
         if (user === null) {
-            return res.json({ success: false, message: "User doesn't exist" })
+            return res.status(404).json({ message: "User doesn't exist" })
         }
 
         const myFriend = await Friend.findOne({ userName: myUserName })
@@ -23,10 +23,10 @@ const request = async (req, res, next) => {
             return next({ error: "Failed to create friend collections" })
         }
         if (myFriend.friends.find(friend => friend.userName === userName) !== undefined) {
-            return res.json({ success: false, message: "Already friends" })
+            return res.status(422).json({ message: "Already friends" })
         }
         if (myFriend.pendingRequest.find(request => request.userName === userName) !== undefined) {
-            return res.json({ success: false, message: "Already sent request" })
+            return res.status(422).json({ message: "Already sent request" })
         }
 
         const myChat = await Chat.findOne({ userName: myUserName })
@@ -34,7 +34,7 @@ const request = async (req, res, next) => {
             return next({ error: "Failed to create chat collections" })
         }
         if (myChat.chats.find(chat => chat.userName === userName) !== undefined) {
-            return res.json({ success: false, message: "This user has already sent you a request" })
+            return res.status(422).json({ message: "This user has already sent you a request" })
         }
 
         const { nanoid } = await import('nanoid')
@@ -49,10 +49,7 @@ const request = async (req, res, next) => {
         chat.chats.unshift({ userName: myUserName, chatId })
         await chat.save()
 
-        res.json({
-            success: true,
-            message: 'Request sent successfully'
-        })
+        res.json({ message: 'Request sent successfully' })
     } catch (err) {
         next(err)
     }
