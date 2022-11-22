@@ -13,4 +13,6 @@ router.post('/accept', verifyUser, friendController.accept)
 
 router.post('/reject', verifyUser, friendController.reject)
 
+router.post('/unfriend', verifyUser, friendController.unfriend)
+
 module.exports = router

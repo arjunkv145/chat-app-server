@@ -186,10 +186,60 @@ const reject = async (req, res, next) => {
     }
 }
 
+const unfriend = async (req, res, next) => {
+    const { userName } = req.body
+    const myUserName = req.user.userName
+
+    try {
+        if (!userName) {
+            return res.status(400).json({ success: false, message: "Username not provided" })
+        }
+
+        const myFriend = await Friend.findOne({ userName: myUserName })
+        if (myFriend === null) {
+            return next({ error: "Failed to create friend collections" })
+        }
+        const friend = await Friend.findOne({ userName })
+        if (friend === null) {
+            return next({ error: "Failed to create friend collections for the user you are sending request" })
+        }
+
+        const myChat = await Chat.findOne({ userName: myUserName })
+        if (myChat === null) {
+            return res.json({ success: false, message: "Failed to create chat collections" })
+        }
+        const chat = await Chat.findOne({ userName })
+        if (chat === null) {
+            return res.json({ success: false, message: "Failed to create chat collections for the user you are sending request" })
+        }
+
+        const myChatIndex = myChat.chats.findIndex(i => i.userName === userName)
+        const chatIndex = chat.chats.findIndex(i => i.userName === myUserName)
+
+        myFriendIndex = myFriend.friends.findIndex(i => i.userName = userName)
+        friendIndex = friend.friends.findIndex(i => i.userName = myUserName)
+
+        myChat.chats.id(myChat.chats[myChatIndex]._id).remove()
+        chat.chats.id(chat.chats[chatIndex]._id).remove()
+        myFriend.friends.id(myFriend.friends[myFriendIndex]._id).remove()
+        friend.friends.id(friend.friends[friendIndex]._id).remove()
+
+        await myFriend.save()
+        await friend.save()
+        await myChat.save()
+        await chat.save()
+
+        res.json({ message: 'You are no longer friends' })
+    } catch (err) {
+        next(err)
+    }
+}
+
 module.exports = {
     request,
     pending,
     friends,
     accept,
-    reject
+    reject,
+    unfriend
 }

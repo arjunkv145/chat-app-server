@@ -7,9 +7,14 @@ const {
 const COOKIE_OPTIONS = require('../options').COOKIE_OPTIONS
 
 const login = async (req, res, next) => {
-    const { email, password } = req.body
+    const { userNameOrEmail, password } = req.body
     try {
-        const user = await User.findOne({ email })
+        const user = await User.findOne({
+            $or: [
+                { userName: userNameOrEmail },
+                { email: userNameOrEmail }
+            ]
+        })
         if (user === null) {
             return res.status(401).json({ success: false, message: "User doesn't exist" })
         }

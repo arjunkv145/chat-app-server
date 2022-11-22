@@ -42,6 +42,9 @@ app.use('/api/friend', friendRoutes)
 io.on('connection', socket => {
     console.log(`new user joined - ${socket.id}`)
     socket.join(socket.handshake.query.userName)
+    socket.on('join_room', userName => {
+        socket.join(userName)
+    })
     socket.on('send_message', data => {
         socket.broadcast.emit('receive_message', data)
     })
