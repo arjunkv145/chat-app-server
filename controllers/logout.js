@@ -22,7 +22,7 @@ const logout = async (req, res, next) => {
         }
         const saveUser = await user.save()
         res.clearCookie('refreshToken', COOKIE_OPTIONS)
-        res.json({ success: true, message: "You are now logged out" })
+        res.json({ message: "You are now logged out" })
     } catch (err) {
         next(err)
     }
@@ -43,7 +43,7 @@ const logoutAll = async (req, res, next) => {
         user.refreshToken = []
         await user.save()
         res.clearCookie('refreshToken', COOKIE_OPTIONS)
-        res.json({ success: true, message: "You are now logged out of all devices" })
+        res.json({ message: "You are now logged out of all devices" })
     } catch (err) {
         next(err)
     }

@@ -15,4 +15,6 @@ router.post('/reject', verifyUser, friendController.reject)
 
 router.post('/unfriend', verifyUser, friendController.unfriend)
 
+router.post('/cancel-pending-request', verifyUser, friendController.cancelPendingRequest)
+
 module.exports = router

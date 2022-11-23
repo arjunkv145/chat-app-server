@@ -84,10 +84,10 @@ const isUsernameAvailable = async (req, res, next) => {
     try {
         const user = await User.findOne({ userName })
         if (user === null) {
-            res.json({ success: true, message: "Username is available" })
+            res.json({ message: "Username is available" })
         }
         else {
-            res.json({ success: false, message: "This username is already taken" })
+            res.json({ message: "This username is already taken" })
         }
     } catch (err) {
         next(err)
@@ -99,10 +99,10 @@ const isEmailAvailable = async (req, res, next) => {
     try {
         const user = await User.findOne({ email })
         if (user === null) {
-            res.json({ success: true, message: "Email is available" })
+            res.json({ message: "Email is available" })
         }
         else {
-            res.json({ success: false, message: "This email is already taken" })
+            res.json({ message: "This email is already taken" })
         }
     } catch (err) {
         next(err)
@@ -110,15 +110,15 @@ const isEmailAvailable = async (req, res, next) => {
 }
 
 const resend = async (req, res, next) => {
-    const { email } = req.params
+    const { email } = req.body
 
     try {
         const user = await User.findOne({ email })
         if (user === null) {
-            return res.status(410).json({ success: false, message: "User doesn't exist" })
+            return res.status(410).json({ message: "User doesn't exist" })
         }
         if (user.emailVerified === true) {
-            return res.status(422).json({ success: false, message: "Your email has already been verified" })
+            return res.status(422).json({ message: "Your email has already been verified" })
         }
         const emailVerificationToken = getEmailVerificationToken(user._id)
         user.emailVerificationToken = emailVerificationToken
@@ -149,7 +149,7 @@ const resend = async (req, res, next) => {
         })
 
         await user.save()
-        res.json({ success: true, message: "New email verification link has been sent to your mail" })
+        res.json({ message: "New email verification link has been sent to your mail" })
     } catch (err) {
         next(err)
     }
@@ -162,15 +162,15 @@ const verifyYourEmail = async (req, res, next) => {
         const userId = payload.sub
         const user = await User.findOne({ _id: userId })
         if (user === null) {
-            return res.status(410).json({ success: false, message: "User doesn't exist" })
+            return res.status(410).json({ message: "User doesn't exist" })
         }
         if (user.emailVerificationToken !== emailVerificationToken) {
-            return res.status(410).json({ success: false, message: "This link is expired" })
+            return res.status(410).json({ message: "This link is expired" })
         }
         user.emailVerified = true
         user.emailVerificationToken = ''
         const saveUser = await user.save()
-        return res.json({ success: true, message: "Your email is verified", userName: saveUser.userName })
+        return res.json({ message: "Your email is verified", userName: saveUser.userName })
     } catch (err) {
         next(err)
     }

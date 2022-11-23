@@ -44,7 +44,7 @@ const refreshToken = async (req, res, next) => {
             sessionId
         })
     } catch (err) {
-        res.status(401).json({ success: false, message: err })
+        res.status(401).json({ message: err })
     }
 }
 

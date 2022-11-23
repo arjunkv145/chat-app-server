@@ -8,7 +8,7 @@ router.get('/is-username-available/:userName', signupController.isUsernameAvaila
 
 router.get('/is-email-available/:email', signupController.isEmailAvailable)
 
-router.get('/verify-your-email/resend/:email', signupController.resend)
+router.post('/verify-your-email/resend/', signupController.resend)
 
 router.get('/verify-your-email/:emailVerificationToken', signupController.verifyYourEmail)
 

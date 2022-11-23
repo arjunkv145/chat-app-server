@@ -28,7 +28,7 @@ const chatRoom = async (req, res, next) => {
         }
         const chatRoom = chat.chats.find(chat => chat.chatId === chatId)
         if (chatRoom === undefined) {
-            return res.status(404).json({ success: false, message: "Chat doesn't exist" })
+            return res.status(404).json({ message: "Chat doesn't exist" })
         }
         res.json({
             success: true,

@@ -16,11 +16,11 @@ const login = async (req, res, next) => {
             ]
         })
         if (user === null) {
-            return res.status(401).json({ success: false, message: "User doesn't exist" })
+            return res.status(401).json({ message: "User doesn't exist" })
         }
         const result = await bcrypt.compare(password, user.password)
         if (result === false) {
-            return res.status(401).json({ success: false, message: "Wrong password" })
+            return res.status(401).json({ message: "Wrong password" })
         }
         const accessToken = getAccessToken(user._id)
         const refreshToken = getRefreshToken(user._id)

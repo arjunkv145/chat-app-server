@@ -18,6 +18,6 @@ module.exports = async (req, res, next) => {
         req.user = user
         next()
     } catch (err) {
-        res.status(403).json({ success: false, message: err })
+        res.status(403).json({ message: err })
     }
 }

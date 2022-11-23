@@ -25,12 +25,12 @@ const isExpired = async (req, res, next) => {
 }
 
 const sendMail = async (req, res, next) => {
-    const { email } = req.params
+    const { email } = req.body
 
     try {
         const user = await User.findOne({ email })
         if (user === null) {
-            return res.status(410).json({ success: false, message: "User doesn't exist" })
+            return res.status(410).json({ message: "User doesn't exist" })
         }
         const passwordResetToken = getPasswordResetToken(user._id)
         user.passwordResetToken = passwordResetToken
@@ -61,7 +61,7 @@ const sendMail = async (req, res, next) => {
         })
 
         const saveUser = await user.save()
-        res.json({ success: true, message: "Password reset link has been sent to your mail" })
+        res.json({ message: "Password reset link has been sent to your mail" })
     } catch (err) {
         next(err)
     }
@@ -69,25 +69,26 @@ const sendMail = async (req, res, next) => {
 
 const passwordReset = async (req, res, next) => {
     const { passwordResetToken, password } = req.body
+
     try {
         const payload = jwt.verify(passwordResetToken, process.env.PASSWORD_RESET_TOKEN_SECRET)
         const userId = payload.sub
         const user = await User.findOne({ _id: userId })
         if (user === null) {
-            return res.status(410).json({ success: false, message: "User doesn't exist" })
+            return res.status(410).json({ message: "User doesn't exist" })
         }
         if (user.passwordResetToken !== passwordResetToken) {
-            return res.status(410).json({ success: false, message: "This link is expired" })
+            return res.status(410).json({ message: "This link is expired" })
         }
         const result = await bcrypt.compare(password, user.password)
         if (result === true) {
-            return res.status(400).json({ success: false, message: "You can't use the old password" })
+            return res.status(400).json({ message: "You can't use the old password" })
         }
         user.passwordResetToken = ''
         const hash = await bcrypt.hash(req.body.password, 10)
         user.password = hash
-        const saveUser = await user.save()
-        res.json({ success: true, message: "Your password has been reset successfully" })
+        await user.save()
+        res.json({ message: "Your password has been reset successfully" })
     } catch (err) {
         next(err)
     }

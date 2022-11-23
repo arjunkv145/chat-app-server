@@ -3,51 +3,55 @@ const Friend = require('../models/friend')
 const Chat = require('../models/chat')
 
 const request = async (req, res, next) => {
-    const { userName } = req.body
-    const myUserName = req.user.userName
+    const { userName } = req.user
+    const { userName: otherUserName } = req.body
 
     try {
-        if (!userName) {
+        if (!otherUserName) {
             return res.status(400).json({ message: "Username not provided" })
         }
-        if (myUserName === userName) {
+        if (userName === otherUserName) {
             return res.status(422).json({ message: "Can't send request" })
         }
-        const user = await User.findOne({ userName })
+        const user = await User.findOne({ userName: otherUserName })
         if (user === null) {
             return res.status(404).json({ message: "User doesn't exist" })
         }
 
-        const myFriend = await Friend.findOne({ userName: myUserName })
-        if (myFriend === null) {
+
+        const friend = await Friend.findOne({ userName })
+        const chat = await Chat.findOne({ userName })
+        const otherChat = await Chat.findOne({ userName: otherUserName })
+
+
+        if (friend === null) {
             return next({ error: "Failed to create friend collections" })
         }
-        if (myFriend.friends.find(friend => friend.userName === userName) !== undefined) {
+        if (friend.friends.find(friend => friend.userName === otherUserName) !== undefined) {
             return res.status(422).json({ message: "Already friends" })
         }
-        if (myFriend.pendingRequest.find(request => request.userName === userName) !== undefined) {
+        if (friend.pendingRequest.find(request => request.userName === otherUserName) !== undefined) {
             return res.status(422).json({ message: "Already sent request" })
         }
 
-        const myChat = await Chat.findOne({ userName: myUserName })
-        if (myChat === null) {
+        if (chat === null) {
             return next({ error: "Failed to create chat collections" })
         }
-        if (myChat.chats.find(chat => chat.userName === userName) !== undefined) {
+        if (chat.chats.find(chat => chat.userName === otherUserName) !== undefined) {
             return res.status(422).json({ message: "This user has already sent you a request" })
         }
 
         const { nanoid } = await import('nanoid')
         const chatId = nanoid()
-        const chat = await Chat.findOne({ userName })
-        if (chat === null) {
+
+        if (otherChat === null) {
             return next({ error: "Failed to create chat collections for the user you are sending request" })
         }
 
-        myFriend.pendingRequest.unshift({ userName })
-        await myFriend.save()
-        chat.chats.unshift({ userName: myUserName, chatId })
-        await chat.save()
+        friend.pendingRequest.unshift({ userName: otherUserName })
+        await friend.save()
+        otherChat.chats.unshift({ userName, chatId })
+        await otherChat.save()
 
         res.json({ message: 'Request sent successfully' })
     } catch (err) {
@@ -56,180 +60,203 @@ const request = async (req, res, next) => {
 }
 
 const pending = async (req, res, next) => {
+    const { userName } = req.user
     try {
-        const friend = await Friend.findOne({ userName: req.user.userName })
+        const friend = await Friend.findOne({ userName })
         if (friend === null) {
             return next({ error: "Failed to create friend collections" })
         }
-        res.json({
-            success: true,
-            pendingRequest: friend.pendingRequest
-        })
+        res.json({ pendingRequest: friend.pendingRequest })
     } catch (err) {
         next(err)
     }
 }
 
 const friends = async (req, res, next) => {
+    const { userName } = req.user
     try {
-        const friend = await Friend.findOne({ userName: req.user.userName })
+        const friend = await Friend.findOne({ userName })
         if (friend === null) {
             return next({ error: "Failed to create friend collections" })
         }
-        res.json({
-            success: true,
-            friends: friend.friends
-        })
+        res.json({ friends: friend.friends })
     } catch (err) {
         next(err)
     }
 }
 
 const accept = async (req, res, next) => {
-    const { userName, chatId } = req.body
-    const myUserName = req.user.userName
+    const { userName } = req.user
+    const { userName: otherUserName, chatId } = req.body
 
     try {
-        if (!userName) {
-            return res.status(400).json({ success: false, message: "Username not provided" })
+        if (!otherUserName) {
+            return res.status(400).json({ message: "Username not provided" })
         }
 
-        const myFriend = await Friend.findOne({ userName: myUserName })
-        if (myFriend === null) {
+        const friend = await Friend.findOne({ userName })
+        const otherFriend = await Friend.findOne({ userName: otherUserName })
+        const chat = await Chat.findOne({ userName })
+        const otherChat = await Chat.findOne({ userName: otherUserName })
+
+        if (friend === null) {
             return next({ error: "Failed to create friend collections" })
         }
-        const friend = await Friend.findOne({ userName })
-        if (friend === null) {
+        if (otherFriend === null) {
             return next({ error: "Failed to create friend collections for the user you are sending request" })
         }
-
-        const myChat = await Chat.findOne({ userName: myUserName })
-        if (myChat === null) {
-            return res.json({ success: false, message: "Failed to create chat collections" })
-        }
-        const chat = await Chat.findOne({ userName })
         if (chat === null) {
-            return res.json({ success: false, message: "Failed to create chat collections for the user you are sending request" })
+            return res.json({ message: "Failed to create chat collections" })
+        }
+        if (otherChat === null) {
+            return res.json({ message: "Failed to create chat collections for the user you are sending request" })
         }
 
-        const myChatIndex = myChat.chats.findIndex(i => i.userName === userName)
+        const chatIndex = chat.chats.findIndex(i => i.userName === otherUserName)
 
-        myChat.chats[myChatIndex] = {
+        chat.chats[chatIndex] = {
+            userName: otherUserName,
+            chatId,
+            friends: true,
+            pending: false,
+            requestSent: false
+        }
+        otherChat.chats.unshift({
             userName,
             chatId,
             friends: true,
             pending: false,
             requestSent: false
-        }
-        chat.chats.unshift({
-            userName: myUserName,
-            chatId,
-            friends: true,
-            pending: false,
-            requestSent: false
         })
 
-        pendingRequestIndex = friend.pendingRequest.findIndex(i => i.userName = myUserName)
-        friend.pendingRequest.splice(pendingRequestIndex, 1)
+        const pendingRequestIndex = otherFriend.pendingRequest.findIndex(i => i.userName = userName)
+        otherFriend.pendingRequest.splice(pendingRequestIndex, 1)
 
-        myFriend.friends.unshift({ userName })
-        friend.friends.unshift({ userName: myUserName })
-        await myFriend.save()
+        friend.friends.unshift({ userName: otherUserName })
+        otherFriend.friends.unshift({ userName })
         await friend.save()
-        await myChat.save()
+        await otherFriend.save()
         await chat.save()
+        await otherChat.save()
 
-        res.json({
-            success: true,
-            message: 'You are now friends'
-        })
+        res.json({ message: 'You are now friends' })
     } catch (err) {
         next(err)
     }
 }
 
 const reject = async (req, res, next) => {
-    const { userName } = req.body
-    const myUserName = req.user.userName
+    const { userName } = req.user
+    const { userName: otherUserName } = req.body
 
     try {
-        if (!userName) {
-            return res.status(400).json({ success: false, message: "Username not provided" })
+        if (!otherUserName) {
+            return res.status(400).json({ message: "Username not provided" })
         }
 
-        const friend = await Friend.findOne({ userName })
-        if (friend === null) {
+        const otherFriend = await Friend.findOne({ userName: otherUserName })
+        const chat = await Chat.findOne({ userName })
+
+        if (otherFriend === null) {
             return next({ error: "Failed to create friend collections for the user you are sending request" })
         }
-
-        const myChat = await Chat.findOne({ userName: myUserName })
-        if (myChat === null) {
-            return res.json({ success: false, message: "Failed to create chat collections" })
+        if (chat === null) {
+            return res.json({ message: "Failed to create chat collections" })
         }
 
-        const myChatIndex = myChat.chats.findIndex(i => i.userName === userName)
+        const chatIndex = chat.chats.findIndex(i => i.userName === otherUserName)
+        const pendingRequestIndex = otherFriend.pendingRequest.findIndex(i => i.userName = userName)
 
-        myChat.chats.splice(myChatIndex, 1)
+        chat.chats.splice(chatIndex, 1)
+        otherFriend.pendingRequest.splice(pendingRequestIndex, 1)
 
-        pendingRequestIndex = friend.pendingRequest.findIndex(i => i.userName = myUserName)
-        friend.pendingRequest.splice(pendingRequestIndex, 1)
+        await otherFriend.save()
+        await chat.save()
 
-        await friend.save()
-        await myChat.save()
-
-        res.json({
-            success: true,
-            message: 'You are rejected the friend request'
-        })
+        res.json({ message: 'You have rejected the friend request' })
     } catch (err) {
         next(err)
     }
 }
 
 const unfriend = async (req, res, next) => {
-    const { userName } = req.body
-    const myUserName = req.user.userName
+    const { userName } = req.user
+    const { userName: otherUserName, chatId } = req.body
 
     try {
-        if (!userName) {
-            return res.status(400).json({ success: false, message: "Username not provided" })
+        if (!otherUserName) {
+            return res.status(400).json({ message: "Username not provided" })
         }
 
-        const myFriend = await Friend.findOne({ userName: myUserName })
-        if (myFriend === null) {
+        const friend = await Friend.findOne({ userName })
+        const otherFriend = await Friend.findOne({ userName: otherUserName })
+        const chat = await Chat.findOne({ userName })
+        const otherChat = await Chat.findOne({ userName: otherUserName })
+
+        if (friend === null) {
             return next({ error: "Failed to create friend collections" })
         }
-        const friend = await Friend.findOne({ userName })
-        if (friend === null) {
+        if (otherFriend === null) {
             return next({ error: "Failed to create friend collections for the user you are sending request" })
         }
-
-        const myChat = await Chat.findOne({ userName: myUserName })
-        if (myChat === null) {
-            return res.json({ success: false, message: "Failed to create chat collections" })
-        }
-        const chat = await Chat.findOne({ userName })
         if (chat === null) {
-            return res.json({ success: false, message: "Failed to create chat collections for the user you are sending request" })
+            return res.json({ message: "Failed to create chat collections" })
+        }
+        if (otherChat === null) {
+            return res.json({ message: "Failed to create chat collections for the user you are sending request" })
         }
 
-        const myChatIndex = myChat.chats.findIndex(i => i.userName === userName)
-        const chatIndex = chat.chats.findIndex(i => i.userName === myUserName)
+        const chatIndex = chat.chats.findIndex(i => i.userName === otherUserName)
+        const otherChatIndex = otherChat.chats.findIndex(i => i.userName === userName)
 
-        myFriendIndex = myFriend.friends.findIndex(i => i.userName = userName)
-        friendIndex = friend.friends.findIndex(i => i.userName = myUserName)
+        const friendIndex = friend.friends.findIndex(i => i.userName = otherUserName)
+        const otherFriendIndex = otherFriend.friends.findIndex(i => i.userName = userName)
 
-        myChat.chats.id(myChat.chats[myChatIndex]._id).remove()
-        chat.chats.id(chat.chats[chatIndex]._id).remove()
-        myFriend.friends.id(myFriend.friends[myFriendIndex]._id).remove()
-        friend.friends.id(friend.friends[friendIndex]._id).remove()
+        chat.chats.splice(chatIndex, 1)
+        otherChat.chats.splice(otherChatIndex, 1)
+        friend.friends.splice(friendIndex, 1)
+        otherFriend.friends.splice(otherFriendIndex, 1)
 
-        await myFriend.save()
         await friend.save()
-        await myChat.save()
+        await otherFriend.save()
         await chat.save()
+        await otherChat.save()
 
-        res.json({ message: 'You are no longer friends' })
+        res.json({ friends: friend.friends })
+    } catch (err) {
+        next(err)
+    }
+}
+
+const cancelPendingRequest = async (req, res, next) => {
+    const { userName } = req.user
+    const { userName: otherUserName, chatId } = req.body
+
+    try {
+        if (!otherUserName) {
+            return res.status(400).json({ message: "Username not provided" })
+        }
+
+        const friend = await Friend.findOne({ userName })
+        const otherChat = await Chat.findOne({ userName: otherUserName })
+
+        if (friend === null) {
+            return next({ error: "Failed to create friend collections" })
+        }
+        if (otherChat === null) {
+            return res.json({ message: "Failed to create chat collections for the user you are sending request" })
+        }
+
+        const friendIndex = friend.pendingRequest.findIndex(i => i.userName = otherUserName)
+        const otherChatIndex = otherChat.chats.findIndex(i => i.userName === userName)
+
+        friend.pendingRequest.splice(friendIndex, 1)
+        otherChat.chats.splice(otherChatIndex, 1)
+
+        await friend.save()
+        await otherChat.save()
+
+        res.json({ message: 'You have cancelled your friend request' })
     } catch (err) {
         next(err)
     }
@@ -241,5 +268,6 @@ module.exports = {
     friends,
     accept,
     reject,
-    unfriend
+    unfriend,
+    cancelPendingRequest
 }
