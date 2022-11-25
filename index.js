@@ -3,6 +3,7 @@ const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const http = require('http')
 const { Server } = require('socket.io')
+const Message = require('./models/message')
 
 require('dotenv').config()
 
@@ -45,8 +46,18 @@ io.on('connection', socket => {
     socket.on('join_room', userName => {
         socket.join(userName)
     })
-    socket.on('send_message', data => {
-        socket.broadcast.emit('receive_message', data)
+    socket.on('send_message', async data => {
+        try {
+            const message = await Message.findOne({ chatId: data.chatId })
+            message.messages.push({
+                userName: data.userName,
+                message: data.message
+            })
+            await message.save()
+            socket.broadcast.emit('receive_message', data)
+        } catch (err) {
+            console.log(err)
+        }
     })
     socket.on('email is verified', data => {
         socket.to(data.room).emit('email is verified')

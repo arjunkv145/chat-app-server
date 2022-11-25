@@ -12,7 +12,7 @@ const MessagesSchema = new Schema({
     },
 })
 
-const ChatMessageSchema = new Schema({
+const MessageSchema = new Schema({
     chatId: {
         type: String,
         default: "",
@@ -20,6 +20,6 @@ const ChatMessageSchema = new Schema({
     messages: [MessagesSchema],
 })
 
-const ChatMessage = mongoose.model('ChatMessage', ChatMessageSchema)
+const Message = mongoose.model('Message', MessageSchema)
 
-module.exports = ChatMessage
+module.exports = Message

@@ -1,6 +1,7 @@
 const User = require('../models/user')
 const Friend = require('../models/friend')
 const Chat = require('../models/chat')
+const Message = require('../models/message')
 
 const request = async (req, res, next) => {
     const { userName } = req.user
@@ -98,6 +99,7 @@ const accept = async (req, res, next) => {
         const otherFriend = await Friend.findOne({ userName: otherUserName })
         const chat = await Chat.findOne({ userName })
         const otherChat = await Chat.findOne({ userName: otherUserName })
+        const message = new Message({ chatId, messages: [] })
 
         if (friend === null) {
             return next({ error: "Failed to create friend collections" })
@@ -106,10 +108,10 @@ const accept = async (req, res, next) => {
             return next({ error: "Failed to create friend collections for the user you are sending request" })
         }
         if (chat === null) {
-            return res.json({ message: "Failed to create chat collections" })
+            return next({ error: "Failed to create chat collections" })
         }
         if (otherChat === null) {
-            return res.json({ message: "Failed to create chat collections for the user you are sending request" })
+            return next({ error: "Failed to create chat collections for the user you are sending request" })
         }
 
         const chatIndex = chat.chats.findIndex(i => i.userName === otherUserName)
@@ -138,6 +140,7 @@ const accept = async (req, res, next) => {
         await otherFriend.save()
         await chat.save()
         await otherChat.save()
+        await message.save()
 
         res.json({ message: 'You are now friends' })
     } catch (err) {
@@ -161,7 +164,7 @@ const reject = async (req, res, next) => {
             return next({ error: "Failed to create friend collections for the user you are sending request" })
         }
         if (chat === null) {
-            return res.json({ message: "Failed to create chat collections" })
+            return next({ error: "Failed to create chat collections" })
         }
 
         const chatIndex = chat.chats.findIndex(i => i.userName === otherUserName)
@@ -200,10 +203,10 @@ const unfriend = async (req, res, next) => {
             return next({ error: "Failed to create friend collections for the user you are sending request" })
         }
         if (chat === null) {
-            return res.json({ message: "Failed to create chat collections" })
+            return next({ error: "Failed to create chat collections" })
         }
         if (otherChat === null) {
-            return res.json({ message: "Failed to create chat collections for the user you are sending request" })
+            return next({ error: "Failed to create chat collections for the user you are sending request" })
         }
 
         const chatIndex = chat.chats.findIndex(i => i.userName === otherUserName)
@@ -211,6 +214,9 @@ const unfriend = async (req, res, next) => {
 
         const friendIndex = friend.friends.findIndex(i => i.userName = otherUserName)
         const otherFriendIndex = otherFriend.friends.findIndex(i => i.userName = userName)
+
+        const chatId = chat.chats[chatIndex].chatId
+        await Message.deleteOne({ chatId })
 
         chat.chats.splice(chatIndex, 1)
         otherChat.chats.splice(otherChatIndex, 1)
@@ -244,7 +250,7 @@ const cancelPendingRequest = async (req, res, next) => {
             return next({ error: "Failed to create friend collections" })
         }
         if (otherChat === null) {
-            return res.json({ message: "Failed to create chat collections for the user you are sending request" })
+            return next({ error: "Failed to create chat collections for the user you are sending request" })
         }
 
         const friendIndex = friend.pendingRequest.findIndex(i => i.userName = otherUserName)
