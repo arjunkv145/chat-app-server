@@ -121,14 +121,12 @@ const accept = async (req, res, next) => {
             chatId,
             friends: true,
             pending: false,
-            requestSent: false
         }
         otherChat.chats.unshift({
             userName,
             chatId,
             friends: true,
             pending: false,
-            requestSent: false
         })
 
         const pendingRequestIndex = otherFriend.pendingRequest.findIndex(i => i.userName = userName)

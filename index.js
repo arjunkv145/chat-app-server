@@ -41,36 +41,29 @@ app.use('/api/chat', chatRoutes)
 app.use('/api/friend', friendRoutes)
 
 io.on('connection', socket => {
-    console.log(`new user joined - ${socket.id}`)
-    socket.join(socket.handshake.query.userName)
-    socket.on('join_room', userName => {
-        socket.join(userName)
-    })
-    socket.on('send_message', async data => {
+    console.log(`New user joined - ${socket.id}`)
+
+    socket.on('login', userName => socket.join(userName))
+    socket.on('join_chatroom', chatId => socket.join(chatId))
+
+    socket.on('send_message', async ({ chatId, userName, message }) => {
         try {
-            const message = await Message.findOne({ chatId: data.chatId })
-            message.messages.push({
-                userName: data.userName,
-                message: data.message
-            })
-            await message.save()
-            socket.broadcast.emit('receive_message', data)
+            const messageCollection = await Message.findOne({ chatId })
+            messageCollection.messages.push({ userName, message })
+            await messageCollection.save()
+            socket.to(chatId).emit('receive_message', { chatId, userName, message })
         } catch (err) {
             console.log(err)
         }
     })
-    socket.on('email is verified', data => {
-        socket.to(data.room).emit('email is verified')
-    })
-    socket.on('logout', data => {
-        socket.to(data.room).emit('logout', data.sessionId)
-    })
-    socket.on('logoutAll', data => {
-        socket.to(data.room).emit('logoutAll')
-    })
-    socket.on('disconnect', data => {
-        console.log(`user disconnected - ${socket.id}`)
-    })
+    socket.on('friend_request_sent', ({ userName }) => socket.to(userName).emit('friend_request_sent'))
+    socket.on('friend_request_accepted', ({ userName }) => socket.to(userName).emit('friend_request_accepted'))
+    socket.on('friend_request_rejected', ({ userName }) => socket.to(userName).emit('friend_request_rejected'))
+
+    socket.on('email_verified', ({ room }) => socket.to(room).emit('email_verified'))
+    socket.on('logout', ({ room, sessionId }) => socket.to(room).emit('logout', sessionId))
+    socket.on('logoutAll', ({ room }) => socket.to(room).emit('logoutAll'))
+    socket.on('disconnect', () => console.log(`User disconnected - ${socket.id}`))
 })
 
 app.use(errorHandler)

@@ -18,10 +18,6 @@ const ChatUserSchema = new Schema({
         type: Boolean,
         default: true,
     },
-    requestSent: {
-        type: Boolean,
-        default: false,
-    },
 })
 
 const ChatSchema = new Schema({
