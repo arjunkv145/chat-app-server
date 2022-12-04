@@ -10,9 +10,13 @@ const MessagesSchema = new Schema({
         type: String,
         default: "",
     },
+    deletedBy: {
+        type: String,
+        default: "",
+    }
 })
 
-const MessageSchema = new Schema({
+const ChatMessageSchema = new Schema({
     chatId: {
         type: String,
         default: "",
@@ -20,6 +24,6 @@ const MessageSchema = new Schema({
     messages: [MessagesSchema],
 })
 
-const Message = mongoose.model('Message', MessageSchema)
+const ChatMessage = mongoose.model('ChatMessage', ChatMessageSchema)
 
-module.exports = Message
+module.exports = ChatMessage

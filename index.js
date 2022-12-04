@@ -3,7 +3,8 @@ const cors = require('cors')
 const cookieParser = require('cookie-parser')
 const http = require('http')
 const { Server } = require('socket.io')
-const Message = require('./models/message')
+const Chat = require('./models/chat')
+const ChatMessage = require('./models/chatMessage')
 
 require('dotenv').config()
 
@@ -46,11 +47,20 @@ io.on('connection', socket => {
     socket.on('login', userName => socket.join(userName))
     socket.on('join_chatroom', chatId => socket.join(chatId))
 
-    socket.on('send_message', async ({ chatId, userName, message }) => {
+    socket.on('send_message', async ({ chatId, userName, otherUserName, message }) => {
         try {
-            const messageCollection = await Message.findOne({ chatId })
+            const messageCollection = await ChatMessage.findOne({ chatId })
             messageCollection.messages.push({ userName, message })
             await messageCollection.save()
+            const otherChat = await Chat.findOne({ userName: otherUserName })
+            const otherChatIndex = otherChat.chats.findIndex(i => i.userName === userName)
+            if (otherChatIndex === -1) {
+                otherChat.chats.unshift({
+                    userName,
+                    chatId,
+                })
+                await otherChat.save()
+            }
             socket.to(chatId).emit('receive_message', { chatId, userName, message })
         } catch (err) {
             console.log(err)

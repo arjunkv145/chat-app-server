@@ -1,7 +1,7 @@
 const mongoose = require('mongoose')
 const { Schema } = mongoose
 
-const ChatUserSchema = new Schema({
+const ChatsSchema = new Schema({
     userName: {
         type: String,
         default: "",
@@ -16,6 +16,14 @@ const ChatUserSchema = new Schema({
     },
     pending: {
         type: Boolean,
+        default: false,
+    },
+    requestSent: {
+        type: Boolean,
+        default: false,
+    },
+    view: {
+        type: Boolean,
         default: true,
     },
 })
@@ -25,7 +33,7 @@ const ChatSchema = new Schema({
         type: String,
         default: "",
     },
-    chats: [ChatUserSchema],
+    chats: [ChatsSchema],
 })
 
 const Chat = mongoose.model('Chat', ChatSchema)

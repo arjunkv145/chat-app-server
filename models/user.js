@@ -25,6 +25,10 @@ const UserSchema = new Schema({
         type: String,
         default: "",
     },
+    online: {
+        type: Boolean,
+        default: false,
+    },
     emailVerified: {
         type: Boolean,
         default: false,

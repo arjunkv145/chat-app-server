@@ -1,13 +1,7 @@
 const mongoose = require('mongoose')
 const { Schema } = mongoose
 
-const FriendUserNameSchema = new Schema({
-    userName: {
-        type: String,
-        default: "",
-    },
-})
-const PendingRequestSchema = new Schema({
+const UserNameSchema = new Schema({
     userName: {
         type: String,
         default: "",
@@ -19,8 +13,9 @@ const FriendSchema = new Schema({
         type: String,
         default: "",
     },
-    friends: [FriendUserNameSchema],
-    pendingRequest: [PendingRequestSchema],
+    friends: [UserNameSchema],
+    pending: [UserNameSchema],
+    blocked: [UserNameSchema],
 })
 
 const Friend = mongoose.model('Friend', FriendSchema)

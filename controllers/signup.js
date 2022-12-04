@@ -22,7 +22,7 @@ const newUser = async (req, res, next) => {
         const friend = new Friend({
             userName: req.body.userName,
             friends: [],
-            pendingRequest: [],
+            pending: [],
         })
         const chat = new Chat({
             userName: req.body.userName,
