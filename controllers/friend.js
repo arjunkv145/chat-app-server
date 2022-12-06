@@ -349,11 +349,61 @@ const block = async () => {
             return res.status(400).json({ message: "Username not provided" })
         }
         const friend = await Friend.findOne({ userName })
+        const otherFriend = await Friend.findOne({ userName: otherUserName })
+        const chat = await Chat.findOne({ userName })
+        const otherChat = await Chat.findOne({ userName: otherUserName })
+
         if (friend === null) {
             return next({ error: "Failed to create friend collections" })
         }
+        if (otherFriend === null) {
+            return next({ error: "Failed to create friend collections for the user you are sending request" })
+        }
+        if (chat === null) {
+            return next({ error: "Failed to create chat collections" })
+        }
+        if (otherChat === null) {
+            return next({ error: "Failed to create chat collections for the user you are sending request" })
+        }
+
+        const friendIndex = friend.friends.findIndex(i => i.userName = otherUserName)
+        const otherFriendIndex = otherFriend.friends.findIndex(i => i.userName = userName)
+        const pendingIndex = friend.pending.findIndex(i => i.userName = otherUserName)
+        const otherPendingIndex = otherFriend.pending.findIndex(i => i.userName = userName)
+        const chatIndex = chat.chats.findIndex(i => i.userName === otherUserName)
+        const otherChatIndex = otherChat.chats.findIndex(i => i.userName === userName)
+
+        if (friendIndex !== -1) {
+            friend.friends.splice(friendIndex, 1)
+        }
+        if (otherFriendIndex !== -1) {
+            otherFriend.friends.splice(otherFriendIndex, 1)
+        }
+        if (pendingIndex !== -1) {
+            friend.pending.splice(pendingIndex, 1)
+        }
+        if (otherPendingIndex !== -1) {
+            otherFriend.pending.splice(otherPendingIndex, 1)
+        }
+
+        chat.chats[chatIndex] = {
+            ...chat.chats[chatIndex],
+            friends: false,
+            pending: false,
+            requestSent: false,
+        }
+        otherChat.chats[otherChatIndex] = {
+            ...otherChat.chats[otherChatIndex],
+            friends: false,
+            pending: false,
+            requestSent: false,
+        }
+
         friend.blocked.unshift({ userName: otherUserName })
         await friend.save()
+        await otherFriend.save()
+        await chat.save()
+        await otherChat.save()
         res.json({ message: `You have blocked ${otherUserName}` })
     } catch (err) {
         next(err)
