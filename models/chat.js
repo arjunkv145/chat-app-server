@@ -22,6 +22,10 @@ const ChatsSchema = new Schema({
         type: Boolean,
         default: false,
     },
+    blocked: {
+        type: Boolean,
+        default: false,
+    },
     view: {
         type: Boolean,
         default: true,
