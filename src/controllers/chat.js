@@ -1,40 +1,179 @@
-const DirectMessage = require('../models/directMessage')
-const Group = require('../models/group')
+const Chat = require('../models/chat')
+const User = require('../models/user')
+const Message = require('../models/message')
 
 const chats = async (req, res, next) => {
-	const { userName } = req.user
+    const { userName } = req.user
 
-	try {
-		const chat = await DirectMessage.findOne({ userName })
-		if (chat === null) {
-			return next({ error: 'Failed to create friend collections' })
-		}
-		res.json({ chats: chat.chats })
-	} catch (err) {
-		next(err)
-	}
+    try {
+        const chats = await Chat.find({ members: { userName } }).sort({
+            updatedAt: 1
+        })
+        res.json({ chats: chats })
+    } catch (err) {
+        next(err)
+    }
 }
 
-// const chatRoom = async (req, res, next) => {
-// 	const { chatId } = req.params
-// 	const { userName } = req.user
+const search = async (req, res, next) => {
+    const { userName } = req.params
+    const { userName: myUserName } = req.user
 
-// 	try {
-// 		const chat = await Chat.findOne({ userName })
-// 		if (chat === null) {
-// 			return next({ error: 'Failed to create friend collections' })
-// 		}
-// 		const chatRoom = chat.chats.find((chat) => chat.chatId === chatId)
-// 		if (chatRoom === undefined) {
-// 			return res.status(404).json({ message: "Chat doesn't exist" })
-// 		}
-// 		res.json({ chatRoom })
-// 	} catch (err) {
-// 		next(err)
-// 	}
-// }
+    try {
+        const regex = new RegExp(`/^${userName}/`)
+        const search = await User.find({
+            userName: { $regex: regex, $nin: [myUserName] }
+        }).limit(10)
+        res.json({ search })
+    } catch (err) {
+        next(err)
+    }
+}
+
+const add = async (req, res, next) => {
+    const { userName: targetUserName } = req.body
+    const { userName } = req.user
+    let chatId = ''
+
+    try {
+        const chat = await Chat.findOne({
+            $and: [
+                { members: { userName } },
+                { members: { userName: targetUserName } }
+            ]
+        })
+        if (chat === null) {
+            const { nanoid } = await import('nanoid')
+            chatId = nanoid()
+            const message = new Message({ chatId, messages: [] })
+            await message.save()
+            const newDirectMessage = new Chat({
+                chatId,
+                members: [
+                    { userName, chatStarted: true },
+                    { userName: targetUserName, chatStarted: false }
+                ]
+            })
+            await newDirectMessage.save()
+        } else {
+            const userIndex = chat.members.findIndex(
+                (u) => u.userName === userName
+            )
+            if (chat.members[userIndex].view === false) {
+                chat.members[userIndex].view = true
+                await chat.save()
+            } else {
+                return res.status(422).json({ message: 'Chat already added' })
+            }
+        }
+
+        res.json({ message: 'Chat added' })
+    } catch (err) {
+        next(err)
+    }
+}
+
+const addtest = async (req, res, next) => {
+    const { members, groupChatName = '' } = req.body
+    const { userName } = req.user
+    let chatId
+    const { nanoid } = await import('nanoid')
+    let message
+
+    try {
+        if (members.length === 1) {
+            const chat = await Chat.findOne({
+                $and: [
+                    { members: { userName } },
+                    { members: { userName: members[0] } }
+                ]
+            })
+            if (chat === null) {
+                chatId = nanoid()
+                message = new Message({ chatId, messages: [] })
+                await message.save()
+                const newChat = new Chat({
+                    chatId,
+                    members: [
+                        { userName, chatStarted: true },
+                        { userName: members[0], chatStarted: false }
+                    ]
+                })
+                await newChat.save()
+            } else {
+                const userIndex = chat.members.findIndex(
+                    (u) => u.userName === userName
+                )
+                if (chat.members[userIndex].view === false) {
+                    chat.members[userIndex].view = true
+                    await chat.save()
+                } else {
+                    return res
+                        .status(422)
+                        .json({ message: 'Chat already added' })
+                }
+            }
+        } else if (members.length > 1) {
+            chatId = nanoid()
+            message = new Message({ chatId, messages: [] })
+            await message.save()
+            const newGroupChat = new Chat({
+                chatId,
+                groupChatName,
+                members: members.map((userName) => ({
+                    userName,
+                    chatStarted: true
+                }))
+            })
+            await newGroupChat.save()
+        }
+
+        res.json({ message: 'Chat added' })
+    } catch (err) {
+        next(err)
+    }
+}
+
+const remove = async (req, res, next) => {
+    const { userName: targetUserName } = req.body
+    const { userName } = req.user
+
+    try {
+        const chat = await Chat.findOne({
+            $and: [
+                { members: { userName } },
+                { members: { userName: targetUserName } }
+            ]
+        })
+        if (chat === null) {
+            return res.status(404).json({ message: 'Not found' })
+        }
+        const userIndex = chat.members.findIndex((u) => u.userName === userName)
+        const targetUserIndex = chat.members.findIndex(
+            (u) => u.userName === targetUserName
+        )
+        if (chat.members[userIndex].view === true) {
+            if (chat.members[targetUserIndex].view === true) {
+                chat.members[userIndex].view = false
+                await chat.save()
+            } else {
+                const chatId = chat.chatId
+                await chat.deleteOne({ chatId })
+                await Message.deleteOne({ chatId })
+            }
+        } else {
+            return res.status(422).json({ message: 'Chat already removed' })
+        }
+
+        res.json({ message: 'Chat removed' })
+    } catch (err) {
+        next(err)
+    }
+}
 
 module.exports = {
-	chats
-	// chatRoom,
+    chats,
+    search,
+    add,
+    remove
 }
