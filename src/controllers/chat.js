@@ -31,49 +31,6 @@ const search = async (req, res, next) => {
 }
 
 const add = async (req, res, next) => {
-    const { userName: targetUserName } = req.body
-    const { userName } = req.user
-    let chatId = ''
-
-    try {
-        const chat = await Chat.findOne({
-            $and: [
-                { members: { userName } },
-                { members: { userName: targetUserName } }
-            ]
-        })
-        if (chat === null) {
-            const { nanoid } = await import('nanoid')
-            chatId = nanoid()
-            const message = new Message({ chatId, messages: [] })
-            await message.save()
-            const newDirectMessage = new Chat({
-                chatId,
-                members: [
-                    { userName, chatStarted: true },
-                    { userName: targetUserName, chatStarted: false }
-                ]
-            })
-            await newDirectMessage.save()
-        } else {
-            const userIndex = chat.members.findIndex(
-                (u) => u.userName === userName
-            )
-            if (chat.members[userIndex].view === false) {
-                chat.members[userIndex].view = true
-                await chat.save()
-            } else {
-                return res.status(422).json({ message: 'Chat already added' })
-            }
-        }
-
-        res.json({ message: 'Chat added' })
-    } catch (err) {
-        next(err)
-    }
-}
-
-const addtest = async (req, res, next) => {
     const { members, groupChatName = '' } = req.body
     const { userName } = req.user
     let chatId
@@ -119,6 +76,7 @@ const addtest = async (req, res, next) => {
             await message.save()
             const newGroupChat = new Chat({
                 chatId,
+                chatType: 'GroupChat',
                 groupChatName,
                 members: members.map((userName) => ({
                     userName,
@@ -142,7 +100,8 @@ const remove = async (req, res, next) => {
         const chat = await Chat.findOne({
             $and: [
                 { members: { userName } },
-                { members: { userName: targetUserName } }
+                { members: { userName: targetUserName } },
+                { chatType: 'DM' }
             ]
         })
         if (chat === null) {
@@ -153,11 +112,16 @@ const remove = async (req, res, next) => {
             (u) => u.userName === targetUserName
         )
         if (chat.members[userIndex].view === true) {
+            const chatId = chat.chatId
             if (chat.members[targetUserIndex].view === true) {
                 chat.members[userIndex].view = false
                 await chat.save()
+                const messageCollection = await Message.findOne({ chatId })
+                messageCollection.messages = messageCollection.messages.map(
+                    (m) => m.deletedBy.push({ userName })
+                )
+                await messageCollection.save()
             } else {
-                const chatId = chat.chatId
                 await chat.deleteOne({ chatId })
                 await Message.deleteOne({ chatId })
             }
